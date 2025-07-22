@@ -39,7 +39,7 @@ Automatizar o acompanhamento de preços de um produto específico em tempo real,
 
    PRODUCT_URL=https://www.site.com/produto-desejado
    DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/xxxxxxxxxx
-   HEADERS={"User-Agent": "Mozilla/5.0"}
+   HEADERS={Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36}
 
 ## 🧠 Como funciona
 
