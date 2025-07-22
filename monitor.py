@@ -60,6 +60,7 @@ def monitor():
         last_price = get_last_price()
 
         if last_price is None:
+            send_discord_alert(0.00, current_price)
             save_price(current_price)
             print("💾 Preço inicial salvo.")
         elif current_price != last_price:
