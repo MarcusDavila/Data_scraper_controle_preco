@@ -18,7 +18,7 @@ def get_price():
         raise Exception(f"Erro HTTP {response.status_code} ao acessar o produto.")
 
     soup = BeautifulSoup(response.text, "html.parser")
-    price_tag = soup.select_one("#tp_price_block_total_price_ww .a-offscreen")
+    price_tag = soup.find("#tp_price_block_total_price_ww .a-offscreen")
 
     if price_tag and price_tag.text.strip():
         price_text = price_tag.text.strip().replace("R$", "").replace(".", "").replace(",", ".")
