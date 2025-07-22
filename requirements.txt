@@ -3,3 +3,4 @@ beautifulsoup4
 discord-webhook
 python-dotenv
 schedule
+playwright
