@@ -4,35 +4,83 @@ from discord_webhook import DiscordWebhook
 from dotenv import load_dotenv
 import os
 import json
+import time
+import random
 
 load_dotenv()
 
 PRODUCT_URL = os.getenv("PRODUCT_URL")
 DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL")
-HEADERS = json.loads(os.getenv("HEADERS"))
+HEADERS = json.loads(os.getenv("HEADERS", "{}"))  # Trata HEADERS como dicionário vazio se não existir
 LAST_PRICE_FILE = "last_price.txt"
 
+# User-Agents válidos para simular navegadores reais
+USER_AGENTS = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.1 Safari/605.1.15",
+    "Mozilla/5.0 (X11; Linux x86_64; rv:89.0) Gecko/20100101 Firefox/89.0"
+]
+
 def get_price():
-    response = requests.get(PRODUCT_URL, headers=HEADERS, timeout=15)
-    if response.status_code != 200:
-        raise Exception(f"Erro HTTP {response.status_code} ao acessar o produto.")
-
-    soup = BeautifulSoup(response.text, "html.parser")
-    price_tag = soup.find("#tp_price_block_total_price_ww .a-offscreen")
-
-    if price_tag and price_tag.text.strip():
-        price_text = price_tag.text.strip().replace("R$", "").replace(".", "").replace(",", ".")
-        price_value = float(price_text)
-        print(f"💰 Preço encontrado: R$ {price_value:.2f}")
-        return price_value
-    else:
-        raise Exception("❌ Não foi possível encontrar o preço na página.")
+    try:
+        # Configura headers dinâmicos
+        headers = HEADERS.copy()
+        headers["User-Agent"] = random.choice(USER_AGENTS)
+        headers["Accept-Language"] = "pt-BR,pt;q=0.9"
+        headers["Accept-Encoding"] = "gzip, deflate, br"
+        
+        response = requests.get(
+            PRODUCT_URL, 
+            headers=headers, 
+            timeout=15,
+            cookies={"session-id": "132-9999999-9999999"}  # Cookie básico para evitar bloqueio
+        )
+        
+        # Verifica erros HTTP
+        if response.status_code != 200:
+            if response.status_code == 500:
+                print("⚠️ Erro 500: Servidor indisponível. Tentando novamente...")
+                time.sleep(30)
+                return get_price()  # Tenta novamente
+            
+            raise Exception(f"Erro HTTP {response.status_code} ao acessar o produto")
+            
+        soup = BeautifulSoup(response.text, "html.parser")
+        
+        # Tenta múltiplos seletores (a Amazon muda frequentemente)
+        selectors = [
+            "#tp_price_block_total_price_ww .a-offscreen",
+            ".a-price-whole",
+            "#priceblock_ourprice",
+            "#price_inside_buybox"
+        ]
+        
+        for selector in selectors:
+            price_tag = soup.select_one(selector)
+            if price_tag and price_tag.text.strip():
+                price_text = price_tag.text.strip()
+                # Limpeza do texto do preço
+                price_text = price_text.replace("R$", "").replace("$", "").replace(",", ".").replace("\xa0", "")
+                # Remove pontos como separadores de milhar
+                if "." in price_text and price_text.rfind(".") < len(price_text) - 3:
+                    price_text = price_text.replace(".", "")
+                price_value = float(price_text)
+                print(f"💰 Preço encontrado: R$ {price_value:.2f}")
+                return price_value
+        
+        # Se nenhum seletor funcionar, salva o HTML para debug
+        with open("debug_page.html", "w", encoding="utf-8") as f:
+            f.write(response.text)
+        raise Exception("❌ Preço não encontrado. HTML salvo em debug_page.html")
+            
+    except Exception as e:
+        raise Exception(f"Falha ao obter preço: {str(e)}")
 
 def get_last_price():
     try:
         with open(LAST_PRICE_FILE, "r") as file:
-            return float(file.read())
-    except:
+            return float(file.read().strip())
+    except (FileNotFoundError, ValueError):
         return None
 
 def save_price(price):
@@ -41,35 +89,55 @@ def save_price(price):
 
 def send_discord_alert(old_price, new_price):
     content = (
-        f"🛒 O preço do produto mudou!\n"
-        f"📉 De: R$ {old_price:.2f}\n"
-        f"📈 Para: R$ {new_price:.2f}\n"
-        f"🔗 [Ver produto]({PRODUCT_URL})"
+        f"🛒 **Alerta de Preço!**\n"
+        f"🔗 [Ver Produto]({PRODUCT_URL})\n\n"
+        f"📉 **Antigo:** R$ {old_price:.2f}\n"
+        f"📈 **Novo:** R$ {new_price:.2f}\n"
+        f"💸 **Diferença:** R$ {new_price - old_price:+.2f}"
     )
 
-    webhook = DiscordWebhook(url=DISCORD_WEBHOOK_URL, content=content)
+    webhook = DiscordWebhook(
+        url=DISCORD_WEBHOOK_URL, 
+        content=content,
+        rate_limit_retry=True
+    )
     response = webhook.execute()
+    
     if response.status_code == 200:
         print("✅ Alerta enviado ao Discord.")
     else:
-        print(f"⚠️ Erro ao enviar alerta Discord: {response.status_code}")
+        print(f"⚠️ Erro ao enviar alerta (HTTP {response.status_code}): {response.text}")
 
 def monitor():
     try:
+        print(f"\n🔍 Iniciando monitoramento: {PRODUCT_URL}")
         current_price = get_price()
         last_price = get_last_price()
 
         if last_price is None:
-            send_discord_alert(0.00, current_price)
             save_price(current_price)
-            print("💾 Preço inicial salvo.")
-        elif current_price != last_price:
+            print(f"💾 Preço inicial salvo: R$ {current_price:.2f}")
+            send_discord_alert(current_price)
+        elif abs(current_price - last_price) > 0.01:  # Evita notificações por pequenas diferenças
+            print(f"✅ Alteração detectada! De R$ {last_price:.2f} para R$ {current_price:.2f}")
             send_discord_alert(last_price, current_price)
             save_price(current_price)
         else:
-            print("ℹ️ Sem alterações de preço.")
+            print(f"ℹ️ Preço mantido: R$ {current_price:.2f}")
+            
     except Exception as e:
-        print(f"❌ Erro ao monitorar: {e}")
+        print(f"❌ Erro crítico: {str(e)}")
+        # Envia alerta de erro para o Discord
+        error_webhook = DiscordWebhook(
+            url=DISCORD_WEBHOOK_URL,
+            content=f"🚨 **Falha no monitoramento!**\nErro: {str(e)[:200]}...\nURL: {PRODUCT_URL}"
+        )
+        error_webhook.execute()
 
 if __name__ == "__main__":
-    monitor()
+    while True:
+        monitor()
+        # Intervalo aleatório entre 5-15 minutos para evitar bloqueio
+        sleep_time = random.randint(300, 900)
+        print(f"⏳ Próxima verificação em {sleep_time//60} minutos...")
+        time.sleep(sleep_time)
