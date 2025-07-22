@@ -7,7 +7,7 @@ print("📦 Iniciando monitor de preços com schedule...")
 # Agenda a função para rodar a cada 30 minutos
 schedule.every(30).minutes.do(monitor)
 
-# Executa imediatamente na inicialização (opcional)
+# Executa imediatamente na inicialização (opcional) 
 monitor()
 
 # Loop principal
