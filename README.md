@@ -11,7 +11,7 @@ Automatizar o acompanhamento de preços de um produto específico em tempo real,
 - ✅ Rastreia o valor de um produto em um site (ex: Kabum, Amazon, etc.)
 - ✅ Detecta mudanças no valor
 - ✅ Envia mensagens de alerta para um canal do Discord via webhook
-- ✅ Pode ser executado de forma agendada (cron, scheduler ou Lambda)
+- ✅ Pode ser executado em intervalo automático (schedule)
 
 ## 🛠️ Tecnologias utilizadas
 
@@ -19,8 +19,8 @@ Automatizar o acompanhamento de preços de um produto específico em tempo real,
 - requests
 - BeautifulSoup
 - discord-webhook
-- schedule (opcional, para execução periódica)
-- dotenv (para variáveis sensíveis)
+- schedule
+- dotenv 
 
 ## 📦 Instalação
 
@@ -40,6 +40,9 @@ Automatizar o acompanhamento de preços de um produto específico em tempo real,
    PRODUCT_URL=https://www.site.com/produto-desejado
    DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/xxxxxxxxxx
    HEADERS={Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36}
+5.Execute o script principal:
+
+   python main.py
 
 ## 🧠 Como funciona
 
@@ -48,19 +51,20 @@ Automatizar o acompanhamento de preços de um produto específico em tempo real,
 3. O preço atual é comparado com o último valor salvo.
 4. Se houver diferença, uma mensagem é enviada ao Discord e o novo valor é salvo.
 
-## 💬 Exemplo de mensagem no Discord
+## 🛠 Arquivos principais
 
-> 🛒 O preço do produto **Cadeira Gamer X** mudou!  
-> 💰 Valor anterior: R$ 1.299,00  
-> 🔻 Novo valor: R$ 1.099,00  
-> 🔗 [Ver produto](https://www.site.com/produto-desejado)
+1. monitor.py`: Funções de scraping e alerta
+2. main.py: Agendador de execução com `schedule`
+3. .env`: Configurações sensíveis (não subir no GitHub)
+4. last_price.txt`: Armazena o último preço encontrado
 
-## ⏰ Agendamento
+## ✅ Exemplo de mensagem no Discord
 
-Você pode configurar o script para rodar em intervalos usando:
-- schedule (rodando localmente)
-- cron no Linux
-- AWS Lambda + EventBridge (para execução em nuvem)
+> 🛒 O preço do produto mudou!  
+> 💰 Valor anterior: R$ 999,00  
+> 🔻 Novo valor: R$ 799,00  
+> 🔗 [Ver produto](https://www.amazon.com.br/dp/EXEMPLO)
+
 
 ## 🙋‍♂️ Autor
 
