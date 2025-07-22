@@ -16,7 +16,7 @@ def get_price():
     response = requests.get(PRODUCT_URL, headers=HEADERS)
     soup = BeautifulSoup(response.text, "html.parser")
     
-    price_tag = soup.select_one(".a-price .a-offscreen")
+    price_tag = soup.select_one("#tp_price_block_total_price_ww .a-offscreen")
 
     if price_tag:
         price_text = price_tag.text.strip().replace("R$", "").replace(".", "").replace(",", ".")
