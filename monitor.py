@@ -107,7 +107,7 @@ def send_initial_alert(price):
         f"🛒 Produto sendo monitorado:\n"
         f"🔗 [Clique aqui para ver o produto]({PRODUCT_URL})\n\n"
         f"💰 **Preço Atual:** R$ {price:.2f}\n"
-        f"⏱️ Irei verificar mudanças a cada 5-15 minutos."
+        f"⏱️ Irei verificar mudanças a cada 24 horas."
     )
 
     webhook = DiscordWebhook(
